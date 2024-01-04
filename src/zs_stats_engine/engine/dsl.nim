@@ -178,5 +178,5 @@ defineGroundArmy Thresher:
   damage 110
   bonus 0.5, Building
   splash 0.5, 60
-  reload 2.15
+  reload 3
   range 2700

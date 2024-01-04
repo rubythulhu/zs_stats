@@ -1,6 +1,5 @@
 type
   Faction* {.pure.} = enum
-    Neutral
     Protectorate
     Grell
     Legion

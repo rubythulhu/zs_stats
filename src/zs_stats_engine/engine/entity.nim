@@ -4,6 +4,7 @@ import std/math
 import std/setutils
 import std/sequtils
 import std/strutils
+import std/lenientops
 
 type
   # use floats for everything b/c this is also used for stats modifications which can be floats
@@ -27,7 +28,7 @@ type
 
   Entity* = ref object
     name*: string
-    factions*: set[Faction] = {Neutral}
+    factions*: set[Faction] = {}
     tags*: Tags = {}
 
     # build
@@ -42,18 +43,24 @@ type
     # buildings stuff
     providesSupply*: int = 0
 
+proc dps*(stats: Stats): float =
+  stats.attacks * stats.damage / stats.reload
 
 proc `$`*(e: Entity): string =
   result = "Entity: {e.name}\n".fmt
+
   let facs = e.factions.toSeq.mapIt($it).join(", ")
   result.add "  Factions: {facs}\n".fmt
+
   let tags = e.tags.toSeq.mapIt($it).join(", ")
   result.add "  Tags: {tags}\n".fmt
+
   if e.hexite > 0 or e.flux > 0:
     result.add "  Cost: {e.hexite}/{e.flux}".fmt
     if e.buildCount > 1:
       result.add " (for {e.buildCount} units)".fmt
     result.add "\n"
+
   if e.buildTime > 0:
     result.add "  Build Time: {e.buildTime} sec\n".fmt
 
@@ -84,22 +91,25 @@ proc `$`*(e: Entity): string =
     result.add "    Damage Reduction: {int(e.stats.damageReduction)}\n".fmt
 
   if e.stats.damage > 0:
+    result.add "    DPS: {int(round(e.stats.dps))}\n".fmt
     result.add "    Damage: {int(e.stats.damage)}\n".fmt
+    for bonus in e.stats.bonuses:
+      let pct = int(round(bonus.amount * 100))
+      let amtrel = int(round(e.stats.damage * bonus.amount))
+      let amtabs = int(round(e.stats.damage + amtrel))
+      for tag in bonus.tags:
+        result.add "    Vs {tag}: +{pct}% / +{amtrel} ({amtabs})\n".fmt
+    if e.stats.attacks > 1:
+      result.add "    Attacks Per Reload: {int(e.stats.attacks)}\n".fmt
 
-  if e.stats.attacks > 0:
-    result.add "    Attacks: {int(e.stats.attacks)}\n".fmt
-
-  if e.stats.range > 0:
-    result.add "    Range: {int(e.stats.range)}\n".fmt
 
   if e.stats.reload > 0:
     result.add "    Reload: {e.stats.reload} sec\n".fmt
 
+  if e.stats.range > 0:
+    result.add "    Range: {int(e.stats.range)}\n".fmt
+
   if e.stats.splash[0] > 0:
-    let amt = int(floor(e.stats.splash.amount * 100))
-    let rad = e.stats.splash.radius
-    result.add "    Splash: {amt}% over {rad}\n".fmt
-
-
-proc dps*(stats: Stats): float =
-  stats.attacks * stats.damage / stats.reload
+    let amt = int(round(e.stats.splash.amount * 100))
+    let rad = int(e.stats.splash.radius)
+    result.add "    Splash: {amt}% over radius {rad}\n".fmt
