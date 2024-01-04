@@ -1,146 +1,154 @@
 ## A DSL for defining entities
 
 import std/setutils
+import std/with
 
 import ./[entity, types]
 export types
 
-template setsArg(what, name, prop: untyped, typ: typedesc): untyped =
-  proc `name s`(arg: set[typ]) = what.prop = what.prop + arg
-  proc `name s`(arg: varargs[typ]) = `name s`(toSet arg)
-  proc name(arg: varargs[typ]) = `name s`(toSet arg)
+type
+  EntityWrapper* = object
+    e: Entity
+
+proc tag(ewrap: var EntityWrapper, arg: set[Tag]) {.inline.} =
+  ewrap.e.tags = ewrap.e.tags + arg
+
+proc tag(ewrap: var EntityWrapper, arg: varargs[Tag]) {.inline.} =
+  ewrap.tag arg.toSet
+
+proc faction(ewrap: var EntityWrapper, arg: set[Faction]) {.inline.} =
+  ewrap.e.factions = ewrap.e.factions + arg
+
+proc faction(ewrap: var EntityWrapper, arg: varargs[Faction]) {.inline.} =
+  ewrap.faction arg.toSet
+
+proc cost(ewrap: var EntityWrapper, h: int; f: int = 0) {.inline.} =
+  ewrap.e.hexite = h
+  ewrap.e.flux = f
+
+proc time(ewrap: var EntityWrapper, t: int) {.inline.} =
+  ewrap.e.buildTime = t
+
+proc builds(ewrap: var EntityWrapper, ct: int) {.inline.} =
+  ewrap.e.buildCount = ct
+
+proc supply(ewrap: var EntityWrapper, supply: float) {.inline.} =
+  ewrap.e.stats.supply = supply
+
+proc hp(ewrap: var EntityWrapper, hp: float) {.inline.} =
+  ewrap.e.stats.hp = hp
+
+proc vision(ewrap: var EntityWrapper, vision: float) {.inline.} =
+  ewrap.e.stats.vision = vision
+
+proc speed(ewrap: var EntityWrapper, speed: float) {.inline.} =
+  ewrap.e.stats.speed = speed
+
+proc shields(ewrap: var EntityWrapper, shields: float) {.inline.} =
+  ewrap.e.stats.shields = shields
+
+proc energy(ewrap: var EntityWrapper, energy: float) {.inline.} =
+  ewrap.e.stats.energy = energy
+
+proc damageReduction(ewrap: var EntityWrapper,
+    damageReduction: float) {.inline.} =
+  ewrap.e.stats.damageReduction = damageReduction
+
+proc damage(ewrap: var EntityWrapper, damage: float) {.inline.} =
+  ewrap.tag Attacker
+  ewrap.e.stats.damage = damage
+
+proc range(ewrap: var EntityWrapper, range: float) {.inline.} =
+  ewrap.tag Attacker
+  ewrap.e.stats.range = range
+
+proc attacks(ewrap: var EntityWrapper, attacks: float) {.inline.} =
+  ewrap.tag Attacker
+  ewrap.e.stats.attacks = attacks
+
+proc reload(ewrap: var EntityWrapper, reload: float) {.inline.} =
+  ewrap.tag Attacker
+  ewrap.e.stats.reload = reload
+
+type ArmorType {.inject.} = enum Light, Medium, Heavy
+
+proc armor(ewrap: var EntityWrapper, t: ArmorType) = ewrap.e.tags.incl case t:
+  of Light: LightArmor
+  of Medium: MediumArmor
+  of Heavy: HeavyArmor
+
+proc bonus(ewrap: var EntityWrapper, amount: float, tag: Tag) {.inline.} =
+  ewrap.tag Attacker
+  ewrap.e.stats.bonuses.add (amount, {tag})
+
+proc splash(ewrap: var EntityWrapper, amount, radius: float) {.inline.} =
+  ewrap.tag Attacker
+  ewrap.e.stats.splash = (amount, radius)
+
+proc providesSupply(ewrap: var EntityWrapper, amount: int) {.inline.} =
+  ewrap.tag Supply
+  ewrap.e.providesSupply = amount
+
+# ---------------
 
 template defineEntity(constName: untyped, body: untyped): untyped =
-  const `constName`* = block:
+  let `constName`* = block:
     let name = astToStr(constName)
-    var ent = Entity(name: name)
+    var entinner {.inject.} = Entity(name: name)
+    var entity {.inject.} = EntityWrapper(e: entinner)
 
-    # disable hints that these procs aren't used
-    {.push used.}
-
-    setsArg ent, tag, tags, Tag
-    setsArg ent, faction, factions, Faction
-
-    proc cost(h: int; f: int = 0) =
-      ent.hexite = h
-      ent.flux = f
-
-    proc time(t: int) =
-      ent.buildTime = t
-
-    proc builds(ct: int) =
-      ent.buildCount = ct
-
-    proc supply(supply: float) =
-      ent.stats.supply = supply
-
-    proc hp(hp: float) =
-      ent.stats.hp = hp
-
-    proc vision(vision: float) =
-      ent.stats.vision = vision
-
-    proc speed(speed: float) =
-      ent.stats.speed = speed
-
-    proc shields(shields: float) =
-      ent.stats.shields = shields
-
-    proc energy(energy: float) =
-      ent.stats.energy = energy
-
-    proc damageReduction(damageReduction: float) =
-      ent.stats.damageReduction = damageReduction
-
-    proc damage(damage: float) =
-      tags Attacker
-      ent.stats.damage = damage
-
-    proc range(range: float) =
-      tags Attacker
-      ent.stats.range = range
-
-    proc attacks(attacks: float) =
-      tags Attacker
-      ent.stats.attacks = attacks
-
-    proc reload(reload: float) =
-      tags Attacker
-      ent.stats.reload = reload
-
-    type ArmorType {.inject.} = enum Light, Medium, Heavy
-
-    proc armor(t: ArmorType) = ent.tags.incl case t:
-      of Light: LightArmor
-      of Medium: MediumArmor
-      of Heavy: HeavyArmor
-
-    proc bonus(amount: float, tag: Tag) =
-      tags Attacker
-      ent.stats.bonuses.add (amount, {tag})
-
-    proc splash(amount, radius: float) =
-      tags Attacker
-      ent.stats.splash = (amount, radius)
-
-    proc providesSupply(amount: int) =
-      tags Supply
-      ent.providesSupply = amount
-
-    {.pop.}
-
-
-    body
+    with entity:
+      body
 
     when isMainModule:
       echo "\n\n---------------------------------------\n"
-      echo name, ent
+      echo name, $entinner
       echo "\n---------------------------------------"
       echo "\n\n"
 
-    ent
+    entinner
 
 
 template defineUnit*(constName: untyped, body: untyped): untyped =
   defineEntity constName:
-    tags Unit
+    tag Unit
     vision 1800
     body
 
 template defineHero*(constName: untyped, body: untyped): untyped =
   defineEntity constName:
-    tags Unit, Hero, Grounded, Attacker
+    tag Unit, Hero, Grounded, Attacker
     body
 
 template defineBuilder*(constName: untyped, body: untyped): untyped =
   defineEntity constName:
-    tags Unit, Builder
+    tag Unit, Builder
     body
 
 template defineHarvester*(constName: untyped, body: untyped): untyped =
   defineEntity constName:
-    tags Unit, Harvester
+    tag Unit, Harvester
     body
 
 template defineGroundArmy*(constName: untyped, body: untyped): untyped =
   defineEntity constName:
-    tags Unit, Grounded, Attacker
+    tag Unit, Grounded, Attacker
     body
 
 template defineFlyingArmy*(constName: untyped, body: untyped): untyped =
   defineEntity constName:
-    tags Unit, Flying, Attacker
+    tag Unit, Flying, Attacker
     body
 
 template defineBuilding*(constName: untyped, body: untyped): untyped =
   defineEntity constName:
-    tags Building
+    tag Building
     vision 1500
     body
 
 template defineStaticDefense*(constName: untyped, body: untyped): untyped =
   defineEntity constName:
-    tags Building, Attacker
+    tag Building, Attacker
     vision 1500
     body
 
