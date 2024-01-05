@@ -94,19 +94,18 @@ proc providesSupply(ewrap: var EntityWrapper, amount: int) {.inline.} =
 template defineEntity(constName: untyped, body: untyped): untyped =
   let `constName`* = block:
     let name = astToStr(constName)
-    var entinner {.inject.} = Entity(name: name)
-    var entity {.inject.} = EntityWrapper(e: entinner)
+    var ewrap {.inject.} = EntityWrapper(e: Entity(name: name))
 
-    with entity:
+    with ewrap:
       body
 
     when isMainModule:
       echo "\n\n---------------------------------------\n"
-      echo name, $entinner
+      echo name, $ewrap.e
       echo "\n---------------------------------------"
       echo "\n\n"
 
-    entinner
+    ewrap.e
 
 
 template defineUnit*(constName: untyped, body: untyped): untyped =
