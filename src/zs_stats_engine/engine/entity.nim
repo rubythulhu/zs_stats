@@ -8,6 +8,9 @@ import std/lenientops
 
 type
   # use floats for everything b/c this is also used for stats modifications which can be floats
+  # could make this ints in the future with a StatsMod object that's all floats but it'd take
+  # more work and isn't a priority, since no number in ZS will fall outside of a float's
+  # integer-level precision range
   Stats* = object
     # base stats
     supply*: float = 0
@@ -26,7 +29,7 @@ type
     reload*: float = 1
     splash*: Splash = (0, 0)
 
-  Entity* = ref object
+  Entity* = object
     name*: string
     factions*: set[Faction] = {}
     tags*: Tags = {}
@@ -47,6 +50,7 @@ proc dps*(stats: Stats): float =
   stats.attacks * stats.damage / stats.reload
 
 proc `$`*(e: Entity): string =
+  echo "um: ", system.`$`(e)
   result = "Entity: {e.name}\n".fmt
 
   let facs = e.factions.toSeq.mapIt($it).join(", ")
