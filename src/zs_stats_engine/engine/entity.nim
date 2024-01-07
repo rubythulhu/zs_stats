@@ -29,6 +29,8 @@ type
     reload*: float = 1
     splash*: Splash = (0, 0)
 
+  InfusionRule* = Stats
+
   Entity* = object
     name*: string
     factions*: set[Faction] = {}
@@ -46,11 +48,26 @@ type
     # buildings stuff
     providesSupply*: int = 0
 
+    # normally calculated, this field allows an entity to force that it can be infused
+    forceInfusable*: bool = false
+
 proc dps*(stats: Stats): float =
   stats.attacks * stats.damage / stats.reload
 
+template intr(x: untyped) = int(round(x))
+
+proc infusable*(e: Entity): int =
+  if e.forceInfusable: true
+  elif not e.tags.contains Unit: false
+  elif not e.tags.contains Attacker: false
+  elif e.tags.contains Massive: false
+  else: true
+
+proc infuseCost*(e: Entity): int =
+  if not infusable e: 0
+  else: intr((e.hexite + e.flux) / 10 + 1)
+
 proc `$`*(e: Entity): string =
-  echo "um: ", system.`$`(e)
   result = "Entity: {e.name}\n".fmt
 
   let facs = e.factions.toSeq.mapIt($it).join(", ")
@@ -117,3 +134,6 @@ proc `$`*(e: Entity): string =
     let amt = int(round(e.stats.splash.amount * 100))
     let rad = int(e.stats.splash.radius)
     result.add "    Splash: {amt}% over radius {rad}\n".fmt
+
+  let raw = system.`$`(e)
+  echo "  Raw: {e.name} {raw}\n".fmt

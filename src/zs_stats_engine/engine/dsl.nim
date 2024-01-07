@@ -107,7 +107,6 @@ template defineEntity(constName: untyped, body: untyped): untyped =
 
     ewrap.e
 
-
 template defineUnit*(constName: untyped, body: untyped): untyped =
   defineEntity constName:
     tag Unit
